@@ -124,6 +124,7 @@ public class MainActivity extends AppCompatActivity {
 
                 // Clear input box
                 		                 mMessageEditText.setText("");
+
             }
         });
     mChildEventListener = new ChildEventListener() {
