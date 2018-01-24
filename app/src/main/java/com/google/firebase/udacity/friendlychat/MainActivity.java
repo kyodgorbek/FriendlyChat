@@ -180,30 +180,30 @@ public class MainActivity extends AppCompatActivity {
             }
         };
     }
-     @Override
+    @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data){
-     super.onActivityResult(requestCode, resultCode, data);
-     if(requestCode == RC_SIGN_IN) {
-         if (resultCode == RESULT_OK) {
-             Toast.makeText(this, "Signed in!", Toast.LENGTH_SHORT).show();
-         } else if (resultCode == RESULT_CANCELED) {
-             Toast.makeText(this, "Signed cancelled", Toast.LENGTH_SHORT).show();
-             finish();
-         } else if(requestCode == RC_PHOTO_PICKER &&  resultCode == RESULT_OK){
-             Uri selectedImageUri = data.getData();
-             StorageReference photoRef =
-                     mChatPhotosStorageReference.child(selectedImageUri.getLastPathSegment());
-             // Upload File to Firebase Storage
-             photoRef.putFile(selectedImageUri).addOnSuccessListener(this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                 @Override
-                 public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                 Uri downloadUrl =  taskSnapshot.getDownloadUrl();
-                 FriendlyMessage friendlyMessage = new FriendlyMessage(null, mUsername, downloadUrl.toString());
-                 mMessageDatabaseReference.push().setValue(friendlyMessage);
-                 }
-             });
-         }
-     }
+        super.onActivityResult(requestCode, resultCode, data);
+        if(requestCode == RC_SIGN_IN) {
+            if (resultCode == RESULT_OK) {
+                Toast.makeText(this, "Signed in!", Toast.LENGTH_SHORT).show();
+            } else if (resultCode == RESULT_CANCELED) {
+                Toast.makeText(this, "Signed cancelled", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        } else if(requestCode == RC_PHOTO_PICKER &&  resultCode == RESULT_OK) {
+            Uri selectedImageUri = data.getData();
+            StorageReference photoRef =
+                    mChatPhotosStorageReference.child(selectedImageUri.getLastPathSegment());
+            // Upload File to Firebase Storage
+            photoRef.putFile(selectedImageUri).addOnSuccessListener(this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                @Override
+                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                    Uri downloadUrl = taskSnapshot.getDownloadUrl();
+                    FriendlyMessage friendlyMessage = new FriendlyMessage(null, mUsername, downloadUrl.toString());
+                    mMessageDatabaseReference.push().setValue(friendlyMessage);
+                }
+            });
+        }
 
     }
 
@@ -224,7 +224,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-
+ //I have changed the code
 
      }
     @Override
