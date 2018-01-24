@@ -24,6 +24,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -37,6 +38,7 @@ import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
 import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -64,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
     public static final String ANONYMOUS = "anonymous";
 
     public static final int DEFAULT_MSG_LENGTH_LIMIT = 1000;
-   public static final String FRIENDLY_MSG_LENGTH_KEY = "friendly_msg_length";
+    public static final String FRIENDLY_MSG_LENGTH_KEY = "friendly_msg_length";
 
     private ListView mMessageListView;
     private MessageAdapter mMessageAdapter;
@@ -82,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseRemoteConfig mFirebaseRemoteConfig;
     public static final int RC_SIGN_IN = 1;
     private static final int RC_PHOTO_PICKER = 2;
-    
+
 
     private String mUsername;
 
@@ -99,7 +101,6 @@ public class MainActivity extends AppCompatActivity {
         mMessageDatabaseReference = mFirebaseDatabase.getReference().child("messages");
         mChatPhotosStorageReference = mFirebaseStorage.getReference().child("chat_photos");
 
-        
 
         // Initialize references to views
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
@@ -121,10 +122,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // TODO: Fire an intent to show an image picker
-             Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-              intent.setType("image/jpeg");
-              intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
-              startActivityForResult(Intent.createChooser(intent, "Complete action using"), RC_PHOTO_PICKER);
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("image/jpeg");
+                intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
+                startActivityForResult(Intent.createChooser(intent, "Complete action using"), RC_PHOTO_PICKER);
 
             }
         });
@@ -191,18 +192,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
     @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data){
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if(requestCode == RC_SIGN_IN) {
+        if (requestCode == RC_SIGN_IN) {
             if (resultCode == RESULT_OK) {
                 Toast.makeText(this, "Signed in!", Toast.LENGTH_SHORT).show();
             } else if (resultCode == RESULT_CANCELED) {
                 Toast.makeText(this, "Signed cancelled", Toast.LENGTH_SHORT).show();
                 finish();
             }
-        } else if(requestCode == RC_PHOTO_PICKER &&  resultCode == RESULT_OK) {
+        } else if (requestCode == RC_PHOTO_PICKER && resultCode == RESULT_OK) {
             Uri selectedImageUri = data.getData();
             StorageReference photoRef =
                     mChatPhotosStorageReference.child(selectedImageUri.getLastPathSegment());
@@ -217,17 +217,65 @@ public class MainActivity extends AppCompatActivity {
             });
 
 
-        FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
-                               .setDeveloperModeEnabled(BuildConfig.DEBUG)
-                                .build();
-               mFirebaseRemoteConfig.setConfigSettings(configSettings);
+            FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
+                    .setDeveloperModeEnabled(BuildConfig.DEBUG)
+                    .build();
+            mFirebaseRemoteConfig.setConfigSettings(configSettings);
 
-                        // Define default config values. Defaults are used when fetched config values are not
-                                // available. Eg: if an error occurred fetching values from the server.
-                                       Map<String, Object> defaultConfigMap = new HashMap<>();
-               defaultConfigMap.put(FRIENDLY_MSG_LENGTH_KEY, DEFAULT_MSG_LENGTH_LIMIT);
-                mFirebaseRemoteConfig.setDefaults(defaultConfigMap);
-    }		     }
+            // Define default config values. Defaults are used when fetched config values are not
+            // available. Eg: if an error occurred fetching values from the server.
+            Map<String, Object> defaultConfigMap = new HashMap<>();
+            defaultConfigMap.put(FRIENDLY_MSG_LENGTH_KEY, DEFAULT_MSG_LENGTH_LIMIT);
+            mFirebaseRemoteConfig.setDefaults(defaultConfigMap);
+            fetchConfig();
+        }
+    }
+
+
+    public void fetchConfig() {
+        long cacheExpiration = 3600; // 1 hour in seconds
+        // If developer mode is enabled reduce cacheExpiration to 0 so that each fetch goes to the
+        // server. This should not be used in release builds.
+        if (mFirebaseRemoteConfig.getInfo().getConfigSettings().isDeveloperModeEnabled()) {
+            cacheExpiration = 0;
+        }
+        mFirebaseRemoteConfig.fetch(cacheExpiration)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        // Make the fetched config available
+                        // via FirebaseRemoteConfig get<type> calls, e.g., getLong, getString.
+                        mFirebaseRemoteConfig.activateFetched();
+
+                        // Update the EditText length limit with
+                        // the newly retrieved values from Remote Config.
+                        applyRetrievedLengthLimit();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        // An error occurred when fetching the config.
+                        Log.w(TAG, "Error fetching config", e);
+
+                        // Update the EditText length limit with
+                        // the newly retrieved values from Remote Config.
+                        applyRetrievedLengthLimit();
+                    }
+                });
+    }
+
+    /**
+     * Apply retrieved length limit to edit text field. This result may be fresh from the server or it may be from
+     * cached values.
+     */
+    private void applyRetrievedLengthLimit() {
+        Long friendly_msg_length = mFirebaseRemoteConfig.getLong(FRIENDLY_MSG_LENGTH_KEY);
+        mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(friendly_msg_length.intValue())});
+        Log.d(TAG, FRIENDLY_MSG_LENGTH_KEY + " = " + friendly_msg_length);
+    }
+
+
 
 
 
